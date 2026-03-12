@@ -1,77 +1,61 @@
-# BluClinic+ | Healthcare Portal
+# BluClinic+ | Enterprise Healthcare Portal
 
-**BluClinic+** is a full-stack medical consultation and triage management system. It facilitates seamless communication between patients seeking medical advice and healthcare professionals, providing automated workflows for triage, diagnosis, and medical reporting.
-
----
-
-## 🏥 Portal Overview
-
-The application features three distinct user experiences:
-
-### 1. Patient Portal
-* **Virtual Consultation:** Submit symptoms, location, and age group for triage.
-* **Medical Records:** Securely view assigned status and completed diagnoses.
-* **Report Generation:** Download professional, computer-generated medical reports in `.txt` format.
-
-### 2. Staff/Doctor Portal
-* **Consultation Management:** View active assigned patients and symptoms.
-* **Digital Diagnosis:** Integrated interface for inputting diagnosis and prescriptions.
-* **History & Archive:** Searchable database of past patient assessments.
-
-### 3. Triage Dashboard (Admin)
-* **Resource Allocation:** Assign incoming patient requests to specific doctors.
-* **System Administration:** Reset patient passwords and manage user records (CRUD).
-* **Data Export:** Export the entire clinic activity log to `.csv` for administrative review.
+**BluClinic+** is a robust, full-stack medical management system designed for high-availability deployment on Red Hat OpenShift. It streamlines the lifecycle of a medical consultation—from initial patient triage and registration to final diagnosis and professional report generation.
 
 ---
 
-## 🛠 Technical Stack
+## 🏗 System Architecture
 
-* **Frontend:** React.js (Hooks, Axios, State-driven UI)
-* **Backend Connectivity:** REST API (hosted on OpenShift)
-* **Styling:** Modern, responsive CSS-in-JS with a clean medical aesthetic.
-* **Data Handling:** Real-time polling (5s intervals) to ensure triage data is always current.
+The application follows a modern 3-tier architecture, optimized for containerized orchestration and persistent data management within a DevOps ecosystem.
+
+### 1. Frontend Layer (The Portal)
+* **Framework:** React.js Single Page Application (SPA).
+* **State Management:** Logic-driven UI using React Hooks (`useState`, `useEffect`).
+* **Real-Time Sync:** Implements a **5-second polling mechanism** to ensure the Triage Dashboard and Patient Records are consistently updated with the backend state.
+* **Styling:** Custom-themed CSS-in-JS focused on accessibility and medical professionalism.
+
+### 2. Backend API Layer
+* **Service:** Containerized RESTful API hosted on the OpenShift Container Platform (OCP).
+* **Network Route:** `http://backend-url-blu-live-clinic.apps.lab.ocp.bludive/api`
+* **Access Control:** Role-Based Access Control (RBAC) separating Admin, Doctor, and Patient permissions.
+
+### 3. Infrastructure & Networking (OCP Lab)
+* **Orchestration:** Managed via Red Hat OpenShift.
+* **Networking:** Leverages **Multus CNI** for advanced pod networking and `network-metrics-daemon` for infrastructure observability.
+* **Storage:** Persistent Volume Claims (PVCs) ensure medical records persist across pod lifecycles and node maintenance.
 
 ---
 
-## 📡 API Integration
+## 🚀 Key Features
 
-The frontend communicates with a backend service at:
-`http://backend-url-blu-live-clinic.apps.lab.ocp.bludive/api`
+| Feature | Description |
+| :--- | :--- |
+| **Virtual Triage** | Patients submit symptoms with age-group categorization (Infant to Senior) for intelligent sorting. |
+| **Admin Dashboard** | Centralized control for assigning doctors to pending cases, resetting passwords, and deleting records. |
+| **Doctor Portal** | Dedicated interface for active consultations, symptom review, and integrated diagnosis/prescription input. |
+| **Professional Export** | Generate computer-signed Medical Reports (.txt) for patients and Clinic Activity logs (.csv) for admins. |
+| **Automated Updates** | Real-time "Toast" notification system providing immediate feedback on system actions. |
 
-### Primary Endpoints:
-| Method | Endpoint | Description |
+---
+
+## 📡 API Endpoints
+
+| Method | Endpoint | Function |
 | :--- | :--- | :--- |
-| `GET` | `/api/patients` | Fetch all patient records |
-| `POST` | `/api/register` | Submit new consultation |
-| `PUT` | `/api/assign` | Triage: Assign doctor to patient |
-| `PUT` | `/api/diagnose` | Complete medical assessment |
-| `PUT` | `/api/patients/:id` | Password reset/update |
-| `DELETE`| `/api/patients/:id` | Remove patient record |
+| `GET` | `/api/patients` | Retrieve all active and historical records. |
+| `POST` | `/api/register` | Create a new patient consultation request. |
+| `PUT` | `/api/assign` | (Admin) Route a patient to a specific physician. |
+| `PUT` | `/api/diagnose` | (Doctor) Finalize assessment and prescription. |
+| `PUT` | `/api/patients/:id`| Administrative password reset. |
+| `DELETE` | `/api/patients/:id`| Record removal (Admin only). |
 
 ---
 
-## 🚀 Deployment & Local Setup
+## 🛠 Installation & Deployment
 
-### Installation
-1.  **Clone the Repo:**
-    ```bash
-    git clone [https://github.com/your-username/blu-clinic-frontend.git](https://github.com/your-username/blu-clinic-frontend.git)
-    cd blu-clinic-frontend
-    ```
-2.  **Install Packages:**
-    ```bash
-    npm install
-    ```
-3.  **Set Environment:**
-    Ensure the `API` constant in `App.js` points to your active OpenShift route.
-4.  **Launch:**
-    ```bash
-    npm start
-    ```
-
-### OpenShift Deployment
-This app is optimized for the **ocp.bludive** environment. To deploy the frontend:
-```bash
-oc new-app [https://github.com/your-username/blu-clinic-frontend.git](https://github.com/your-username/blu-clinic-frontend.git) --name=bluclinic-ui
-oc expose svc/bluclinic-ui
+### Local Development
+1. **Clone & Install:**
+   ```bash
+   git clone [https://github.com/your-repo/blu-clinic.git](https://github.com/your-repo/blu-clinic.git)
+   cd blu-clinic
+   npm install
