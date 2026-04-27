@@ -1,92 +1,158 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const app = express();
 
+const app = express();
 app.use(cors());
 app.use(express.json());
 
+const PORT = process.env.PORT || 5000;
+const mongoURI = process.env.MONGO_URI;
 
-const mongoURI = process.env.MONGO_URI || 'mongodb://mongodb:27017/liveclinic';
+// 🔍 Debug check
+console.log("MONGO_URI:", mongoURI ? "SET" : "NOT SET");
 
+// --- SCHEMA ---
 const UserSchema = new mongoose.Schema({
   username: { type: String, required: true },
   password: { type: String, required: true },
   phone: { type: String, default: "" },
-  role: { type: String, enum: ['patient', 'doctor', 'admin'] }, 
+  role: { type: String, enum: ['patient', 'doctor', 'admin'] },
   symptoms: { type: String, default: "" },
-  age: String,      
-  location: String, 
+  age: String,
+  location: String,
   diagnosis: { type: String, default: "" },
   prescription: { type: String, default: "" },
   assignedDoctor: { type: String, default: null },
-  status: { type: String, default: 'Pending' }, 
+  status: { type: String, default: 'Pending' },
   createdAt: { type: Date, default: Date.now }
 });
 
 const User = mongoose.model('User', UserSchema);
 
-const seedUsers = async () => {
-  try {
-    const doctors = ['Jonah Irande', 'Oluwatosin Daniel', 'Faith Bitrus'];
-    for (let name of doctors) {
-      await User.updateOne({ username: name }, { role: 'doctor', password: 'p@ssw0rd' }, { upsert: true });
-    }
-    await User.updateOne({ username: 'admin' }, { role: 'admin', password: 'p@ssw0rd' }, { upsert: true });
-  } catch (err) { console.error('Seed error:', err); }
-};
-
-mongoose.connect(mongoURI).then(() => seedUsers());
+// --- HEALTH CHECK (VERY IMPORTANT FOR AZURE) ---
+app.get('/', (req, res) => {
+  res.send("API is running");
+});
 
 // --- ROUTES ---
 
 app.post('/api/register', async (req, res) => {
   try {
     const { username, password, phone, symptoms, age, location } = req.body;
-    const newUser = new User({ username, password, phone, symptoms, age, location, role: 'patient' });
+
+    const newUser = new User({
+      username,
+      password,
+      phone,
+      symptoms,
+      age,
+      location,
+      role: 'patient'
+    });
+
     await newUser.save();
-    res.status(201).send(newUser);
-  } catch (err) { res.status(500).send({ error: "Register failed" }); }
+    res.status(201).json(newUser);
+
+  } catch (err) {
+    console.error("REGISTER ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/api/patients', async (req, res) => {
   try {
-    const patients = await User.find({ role: 'patient' }).sort({ createdAt: -1 });
+    const patients = await User.find({ role: 'patient' });
     res.json(patients);
-  } catch (err) { res.status(500).send({ error: "Fetch failed" }); }
+
+  } catch (err) {
+    console.error("PATIENT FETCH ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.put('/api/assign', async (req, res) => {
   try {
     const { patientId, doctorName } = req.body;
-    await User.findByIdAndUpdate(patientId, { assignedDoctor: doctorName, status: 'Assigned' });
-    res.send({ msg: 'Assigned' });
-  } catch (err) { res.status(500).send({ error: "Assign failed" }); }
+
+    await User.findByIdAndUpdate(patientId, {
+      assignedDoctor: doctorName,
+      status: 'Assigned'
+    });
+
+    res.json({ msg: 'Assigned' });
+
+  } catch (err) {
+    console.error("ASSIGN ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.put('/api/reset-password', async (req, res) => {
   try {
     const { patientId, newPassword } = req.body;
-    const updated = await User.findByIdAndUpdate(patientId, { password: newPassword }, { new: true });
-    if (!updated) return res.status(404).send({ error: "Patient not found" });
-    res.send({ msg: 'Password Reset Successful' });
-  } catch (err) { res.status(500).send({ error: "Reset failed" }); }
+
+    const updated = await User.findByIdAndUpdate(
+      patientId,
+      { password: newPassword },
+      { new: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ error: "Patient not found" });
+    }
+
+    res.json({ msg: 'Password Reset Successful' });
+
+  } catch (err) {
+    console.error("RESET ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.put('/api/diagnose', async (req, res) => {
   try {
     const { patientId, diagnosis, prescription } = req.body;
-    await User.findByIdAndUpdate(patientId, { diagnosis, prescription, status: 'Completed' });
-    res.send({ msg: 'Finalized' });
-  } catch (err) { res.status(500).send({ error: "Diagnosis failed" }); }
+
+    await User.findByIdAndUpdate(patientId, {
+      diagnosis,
+      prescription,
+      status: 'Completed'
+    });
+
+    res.json({ msg: 'Finalized' });
+
+  } catch (err) {
+    console.error("DIAGNOSIS ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.delete('/api/patients/:id', async (req, res) => {
   try {
     await User.findByIdAndDelete(req.params.id);
-    res.send({ msg: 'Deleted' });
-  } catch (err) { res.status(500).send({ error: "Delete failed" }); }
+    res.json({ msg: 'Deleted' });
+
+  } catch (err) {
+    console.error("DELETE ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`📡 Server active on ${PORT}`));
+// --- START SERVER ONLY AFTER DB CONNECTS ---
+mongoose.connect(mongoURI, {
+  dbName: "blulive-db",
+  tls: true,
+  retryWrites: false
+})
+.then(() => {
+  console.log("✅ Connected to Cosmos DB");
+
+  app.listen(PORT, () => {
+    console.log(`📡 Server active on ${PORT}`);
+  });
+
+})
+.catch(err => {
+  console.error("❌ Cosmos DB connection error:", err);
+});
