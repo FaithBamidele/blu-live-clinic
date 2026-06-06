@@ -8,7 +8,12 @@ RUN npm run build
 
 # Stage 2: Serve the application using Nginx
 FROM nginx:alpine
-# Copy the build output to replace the default nginx contents.
+
+# 1. Copy the custom nginx configuration for reverse proxy routing
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# 2. Copy the build output to replace the default nginx contents.
 COPY --from=build /app/build /usr/share/nginx/html
+
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
