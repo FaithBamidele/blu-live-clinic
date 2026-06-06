@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API = "https://blc-backend-app.azurewebsites.net/api";
+const API = "/api";
 
 const doctorPhotos = {
   "Faith Bitrus": "https://lh3.googleusercontent.com/d/140WAJOrcnvvZlj9Wb5WYXz1tj7vwWj8E", 
