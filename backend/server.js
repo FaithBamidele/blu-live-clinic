@@ -7,7 +7,7 @@ app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
-const mongoURI = process.env.MONGO_URI;
+const mongoURI = process.env.MONGO_URI || "mongodb://mongodb:27017/liveclinic";
 
 // 🔍 Debug check
 console.log("MONGO_URI:", mongoURI ? "SET" : "NOT SET");
@@ -30,9 +30,9 @@ const UserSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', UserSchema);
 
-// --- HEALTH CHECK (VERY IMPORTANT FOR AZURE) ---
+// --- HEALTH CHECK (VERY IMPORTANT FOR KUBERNETES PROBES) ---
 app.get('/', (req, res) => {
-  res.send("API is running");
+  res.status(200).send("API is running");
 });
 
 // --- ROUTES ---
@@ -139,20 +139,22 @@ app.delete('/api/patients/:id', async (req, res) => {
   }
 });
 
-// --- START SERVER ONLY AFTER DB CONNECTS ---
+// --- DATABASE CONNECTION ---
 mongoose.connect(mongoURI, {
   dbName: "blulive-db",
   tls: true,
+  tlsAllowInvalidCertificates: true, // 👈 Fixes self-signed TLS errors inside the cluster
   retryWrites: false
 })
 .then(() => {
-  console.log("✅ Connected to Cosmos DB");
-
-  app.listen(PORT, () => {
-    console.log(`📡 Server active on ${PORT}`);
-  });
-
+  console.log("✅ Connected to MongoDB successfully via TLS");
 })
 .catch(err => {
-  console.error("❌ Cosmos DB connection error:", err);
+  console.error("❌ MongoDB connection error:", err);
+});
+
+// --- START EXPRESS SERVER IMMEDIATELY ---
+// This ensures your liveness probes don't fail during DB handshakes
+app.listen(PORT, () => {
+  console.log(`📡 Server active on port ${PORT}`);
 });
