@@ -3,43 +3,92 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
-const mongoURI = process.env.MONGO_URI || "mongodb://mongodb:27017/liveclinic";
+const mongoURI =
+  process.env.MONGO_URI ||
+  'mongodb://mongodb:27017/liveclinic';
 
-// 🔍 Debug check
-console.log("MONGO_URI:", mongoURI ? "SET" : "NOT SET");
+console.log('MONGO_URI:', process.env.MONGO_URI ? 'SET' : 'USING DEFAULT');
 
 // --- SCHEMA ---
 const UserSchema = new mongoose.Schema({
-  username: { type: String, required: true },
-  password: { type: String, required: true },
-  phone: { type: String, default: "" },
-  role: { type: String, enum: ['patient', 'doctor', 'admin'] },
-  symptoms: { type: String, default: "" },
+  username: {
+    type: String,
+    required: true
+  },
+  password: {
+    type: String,
+    required: true
+  },
+  phone: {
+    type: String,
+    default: ''
+  },
+  role: {
+    type: String,
+    enum: ['patient', 'doctor', 'admin']
+  },
+  symptoms: {
+    type: String,
+    default: ''
+  },
   age: String,
   location: String,
-  diagnosis: { type: String, default: "" },
-  prescription: { type: String, default: "" },
-  assignedDoctor: { type: String, default: null },
-  status: { type: String, default: 'Pending' },
-  createdAt: { type: Date, default: Date.now }
+  diagnosis: {
+    type: String,
+    default: ''
+  },
+  prescription: {
+    type: String,
+    default: ''
+  },
+  assignedDoctor: {
+    type: String,
+    default: null
+  },
+  status: {
+    type: String,
+    default: 'Pending'
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
 });
 
 const User = mongoose.model('User', UserSchema);
 
-// --- HEALTH CHECK (VERY IMPORTANT FOR KUBERNETES PROBES) ---
+// --- HEALTH CHECK ---
 app.get('/', (req, res) => {
-  res.status(200).send("API is running");
+  res.status(200).send('API is running');
+});
+
+// Optional dedicated health endpoint
+app.get('/health', (req, res) => {
+  const databaseConnected =
+    mongoose.connection.readyState === 1;
+
+  res.status(databaseConnected ? 200 : 503).json({
+    api: 'running',
+    database: databaseConnected ? 'connected' : 'disconnected'
+  });
 });
 
 // --- ROUTES ---
-
 app.post('/api/register', async (req, res) => {
   try {
-    const { username, password, phone, symptoms, age, location } = req.body;
+    const {
+      username,
+      password,
+      phone,
+      symptoms,
+      age,
+      location
+    } = req.body;
 
     const newUser = new User({
       username,
@@ -52,21 +101,23 @@ app.post('/api/register', async (req, res) => {
     });
 
     await newUser.save();
-    res.status(201).json(newUser);
 
+    res.status(201).json(newUser);
   } catch (err) {
-    console.error("REGISTER ERROR:", err);
+    console.error('REGISTER ERROR:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
 app.get('/api/patients', async (req, res) => {
   try {
-    const patients = await User.find({ role: 'patient' });
-    res.json(patients);
+    const patients = await User.find({
+      role: 'patient'
+    });
 
+    res.json(patients);
   } catch (err) {
-    console.error("PATIENT FETCH ERROR:", err);
+    console.error('PATIENT FETCH ERROR:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -75,15 +126,27 @@ app.put('/api/assign', async (req, res) => {
   try {
     const { patientId, doctorName } = req.body;
 
-    await User.findByIdAndUpdate(patientId, {
-      assignedDoctor: doctorName,
-      status: 'Assigned'
+    const updatedPatient = await User.findByIdAndUpdate(
+      patientId,
+      {
+        assignedDoctor: doctorName,
+        status: 'Assigned'
+      },
+      { new: true }
+    );
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        error: 'Patient not found'
+      });
+    }
+
+    res.json({
+      msg: 'Assigned',
+      patient: updatedPatient
     });
-
-    res.json({ msg: 'Assigned' });
-
   } catch (err) {
-    console.error("ASSIGN ERROR:", err);
+    console.error('ASSIGN ERROR:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -99,62 +162,84 @@ app.put('/api/reset-password', async (req, res) => {
     );
 
     if (!updated) {
-      return res.status(404).json({ error: "Patient not found" });
+      return res.status(404).json({
+        error: 'Patient not found'
+      });
     }
 
-    res.json({ msg: 'Password Reset Successful' });
-
+    res.json({
+      msg: 'Password Reset Successful'
+    });
   } catch (err) {
-    console.error("RESET ERROR:", err);
+    console.error('RESET ERROR:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
 app.put('/api/diagnose', async (req, res) => {
   try {
-    const { patientId, diagnosis, prescription } = req.body;
-
-    await User.findByIdAndUpdate(patientId, {
+    const {
+      patientId,
       diagnosis,
-      prescription,
-      status: 'Completed'
+      prescription
+    } = req.body;
+
+    const updatedPatient = await User.findByIdAndUpdate(
+      patientId,
+      {
+        diagnosis,
+        prescription,
+        status: 'Completed'
+      },
+      { new: true }
+    );
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        error: 'Patient not found'
+      });
+    }
+
+    res.json({
+      msg: 'Finalized',
+      patient: updatedPatient
     });
-
-    res.json({ msg: 'Finalized' });
-
   } catch (err) {
-    console.error("DIAGNOSIS ERROR:", err);
+    console.error('DIAGNOSIS ERROR:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
 app.delete('/api/patients/:id', async (req, res) => {
   try {
-    await User.findByIdAndDelete(req.params.id);
-    res.json({ msg: 'Deleted' });
+    const deletedPatient = await User.findByIdAndDelete(
+      req.params.id
+    );
 
+    if (!deletedPatient) {
+      return res.status(404).json({
+        error: 'Patient not found'
+      });
+    }
+
+    res.json({ msg: 'Deleted' });
   } catch (err) {
-    console.error("DELETE ERROR:", err);
+    console.error('DELETE ERROR:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// --- DATABASE CONNECTION ---
-mongoose.connect(mongoURI, {
-  dbName: "blulive-db",
-  tls: true,
-  tlsAllowInvalidCertificates: true, // 👈 Fixes self-signed TLS errors inside the cluster
-  retryWrites: false
-})
-.then(() => {
-  console.log("✅ Connected to MongoDB successfully via TLS");
-})
-.catch(err => {
-  console.error("❌ MongoDB connection error:", err);
-});
+// --- DATABASE CONNECTION AND SERVER START ---
+mongoose
+  .connect(mongoURI)
+  .then(() => {
+    console.log('Connected to MongoDB successfully');
 
-// --- START EXPRESS SERVER IMMEDIATELY ---
-// This ensures your liveness probes don't fail during DB handshakes
-app.listen(PORT, () => {
-  console.log(`📡 Server active on port ${PORT}`);
-});
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server active on port ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
+  });
