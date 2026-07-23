@@ -8,7 +8,11 @@ ENV MONGO_INITDB_DATABASE=liveclinic
 
 # OpenShift/Docker will automatically execute any .js files in this folder on startup
 COPY init-db.js /docker-entrypoint-initdb.d/
+RUN mkdir -p /mongodb/data && chown -R mongodb:mongodb /mongodb/data
 USER mongodb
 
 # Expose the standard MongoDB port
 EXPOSE 27017
+
+#Change data directory
+CMD ["mongod", "--dbpath", "/mongodb/data", "--bind_ip_all"]
